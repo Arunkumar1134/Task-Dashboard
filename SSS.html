@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Task Analyze</title>
+  <meta name="description" content="Task Analyze dashboard with dark UI. Tabs and user are defaults in code. Calendar timezone-safe." />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- ===========================================================
+       SHARED CSS - paste once. Edit visual values here.
+       =========================================================== -->
+  <style>
+    :root{
+      --bg:#0b0b0c;
+      --panel:#0f0f10;
+      --muted:#9aa6b2;
+      --accent:#7c3aed;
+      --glass: rgba(255,255,255,0.02);
+      --card-radius:12px;
+      --shadow: 0 8px 28px rgba(0,0,0,0.6);
+      --soft-white: #f6f6f8;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial;background:var(--bg);color:#e6eef6}
+    .app{display:flex;height:100vh;gap:18px}
+    .main{flex:1;padding:18px 28px;overflow:auto}
+    /* note: right sidebar removed per request */
+    /* Top toolbar */
+    .toolbar{display:flex;align-items:center;gap:18px;margin-bottom:18px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#5b21b6);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(124,58,237,0.12)}
+    .brand h1{margin:0;font-size:16px}
+    .inputs{display:flex;align-items:center; justify-content:center;gap:12px;flex:1}
+    .inputBox{background:rgba(255,255,255,0.02);padding:8px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);min-width:260px;display:flex;flex-direction:column}
+    .inputBox small{font-size:12px;color:var(--muted)}
+    .inputBox input{background:transparent;border:none;color:inherit;outline:none;padding-top:6px}
+    /* cards row */
+    .cardsRow{display:flex;gap:14px;align-items:center;margin:12px 0;flex-wrap:nowrap;overflow:auto;padding-bottom:6px}
+    .card{min-width:140px;height:72px;border-radius:14px;padding:12px;color:#04121b;display:flex;flex-direction:column;justify-content:center;box-shadow:var(--shadow)}
+    .card h4{margin:0;font-size:13px;color:rgba(0,0,0,0.6)}
+    .card .num{font-size:26px;font-weight:700;margin-top:6px}
+    .g1{background:linear-gradient(135deg,#8b5cf6,#c084fc)}
+    .g2{background:linear-gradient(135deg,#f6a44e,#ffd27d)}
+    .g3{background:linear-gradient(135deg,#68d391,#c6f6d5)}
+    .g4{background:linear-gradient(135deg,#5eead4,#9df8f3)}
+    .g5{background:linear-gradient(135deg,#e879f9,#fbc7ff)}
+    .gtotal{background:linear-gradient(180deg,#ffffff,#bdbdbd)}
+    /* layout */
+    .content{display:flex;gap:20px}
+    .leftCol{flex:1}
+    /* Chart card: reduced vertical size per request (height controlled by canvas height attribute) */
+    .chartCard{background:linear-gradient(180deg,#111217,#15151a);border-radius:12px;padding:14px;color:#111;box-shadow:0 6px 20px rgba(0,0,0,0.25)}
+    .chartHeader{font-weight:600;margin-bottom:8px}
+    .dateMatrix{margin-top:12px;background:linear-gradient(180deg,#0f0f10,#0b0b0c);padding:12px;border-radius:12px;color:#e6eef6}
+    /* sidebar calendar */
+    .calendarCard{background:linear-gradient(180deg,#111217,#15151a);padding:14px;border-radius:12px;color:#e6eef6;box-shadow:var(--shadow)}
+    .calHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+    .day{padding:8px;border-radius:8px;text-align:center;color:#cfcfd6;background:transparent;cursor:pointer}
+    .day.selected{background:var(--accent);color:white;box-shadow:0 6px 14px rgba(124,58,237,0.12)}
+    /* moved sync button (placed under calendar) */
+    .syncWrap{margin-top:12px;display:flex;justify-content:flex-start}
+    .syncBtn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:22px;background:linear-gradient(90deg,#6d28d9,#8b5cf6);color:white;border:none;cursor:pointer}
+    /* small table */
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03);color:#cdd6dd}
+    /* responsive */
+    @media(max-width:980px){ .calendarCard{max-width:100%} .cardsRow{flex-wrap:wrap} }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="main">
+
+      <!-- ===========================================================
+           1) HEADER / TOOLBAR (Tabs & User inputs removed from layout)
+           - Tabs and User are now fixed in JS defaults (see JS defaultTabs/defaultUser)
+           =========================================================== -->
+      <div class="toolbar">
+        <div class="brand">
+          <div class="logo">🔮</div>
+          <div>
+            <h1>Task Analyze</h1>
+            <div style="font-size:12px;color:var(--muted)">Dashboard</div>
+          </div>
+        </div>
+
+        <!-- Keep only Spreadsheet ID input in UI per request -->
+        <div class="inputs">
+          <div class="inputBox">
+            <small>Spreadsheet ID</small>
+            <input id="sheetId" value="1F6RSwOkVXKSwUX7iasVXTI3kOnqz9uJprMc8cWPmd_I">
+          </div>
+          <!-- removed Tabs & User Name inputs from UI (they are defaults in JS) -->
+        </div>
+      </div>
+      <!-- END: Header/Toolbar -->
+
+      <!-- ===========================================================
+           2) CARDS ROW (client cards + total) - no change required
+           - JS will still populate these dynamically.
+           =========================================================== -->
+      <div class="cardsRow" id="cardsRow">
+        <!-- example static placeholders (will be replaced by JS on sync) -->
+        <div class="card g1" data-client="method_webs_67"><h4 style="margin:0">Method</h4><div class="num">—</div></div>
+        <div class="card g2" data-client="Foresight_HITL_127"><h4 style="margin:0">Foresight</h4><div class="num">—</div></div>
+        <div class="card g3" data-client="RISCOM_HITL_88"><h4 style="margin:0">Riscom</h4><div class="num">—</div></div>
+        <div class="card g4" data-client="Kinetic_app_69"><h4 style="margin:0">Kinetic</h4><div class="num">—</div></div>
+        <div class="card g5" data-client="corespecialty_HITL_144"><h4 style="margin:0">Corespecialty</h4><div class="num">—</div></div>
+        <!-- total will be appended by JS after sync -->
+      </div>
+      <!-- END: Cards Row -->
+
+      <!-- ===========================================================
+           3) CHART / MAIN CONTENT PANEL
+           - Chart size reduced: canvas height set to 140 (was 220)
+           =========================================================== -->
+      <div class="content">
+        <div class="leftCol">
+          <div class="chartCard">
+            <div class="chartHeader">Tasks Progress</div>
+            <!-- reduced canvas height for smaller chart -->
+            <canvas id="mainChart" height="140"></canvas>
+
+            <!-- dateMatrix appears when a date or range is selected -->
+            <div id="dateMatrix" class="dateMatrix" style="display:none"></div>
+          </div>
+        </div>
+
+        <!-- spacer between chart and calendar -->
+        <div style="width:12px"></div>
+
+        <!-- ===========================================================
+             4) CALENDAR SIDEBAR CARD
+             - Sync button is placed BELOW this card (outside) as requested
+             =========================================================== -->
+        <div style="width:280px">
+          <div class="calendarCard" id="calendarCard">
+            <div class="calHeader">
+              <div><strong id="calMonth">Sep</strong> <span id="calYear">2025</span></div>
+              <div><button id="prevMonth">◀</button> <button id="nextMonth">▶</button></div>
+            </div>
+
+            <!-- calendar grid (cells inserted by JS) -->
+            <div class="calGrid" id="calendarGrid"></div>
+
+            <div style="height:14px"></div>
+            <div style="font-size:12px;color:var(--muted)"><strong>Date selection</strong></div>
+            <div id="selectionText" style="color:var(--muted);margin-top:6px">No date selected</div>
+          </div>
+
+          <!-- SYNC BUTTON MOVED HERE (under calendar card) -->
+          <div class="syncWrap">
+            <button class="syncBtn" id="syncBtn">★ Sync Data</button>
+          </div>
+        </div>
+      </div>
+      <!-- END: Chart + Calendar -->
+
+    </div> <!-- .main -->
+
+    <!-- Right sidebar UI removed (GID map + clients list removed from layout per request).
+         Note: GID map and client lists are still supported in code via defaults - see JS. -->
+
+  </div> <!-- .app -->
+
+  <!-- ===========================================================
+       JAVASCRIPT
+       - Defaults for Tabs & User are set here: defaultTabs, defaultUser
+       - Calendar uses timezone-safe local date formatting.
+       - Comments mark each logical block.
+       =========================================================== -->
+  <script>
+  /************************************************************************
+   * DEFAULT CONFIG (change these values if you want different defaults)
+   * These replace the removed UI inputs for Tabs & User Name.
+   ************************************************************************/
+  const defaultTabs = ["method_webs_67","Foresight_HITL_127","RISCOM_HITL_88","Kinetic_app_69","corespecialty_HITL_144"];
+  const defaultUser = "Arun";
+  const defaultGidMap = {"method_webs_67":"0","Foresight_HITL_127":"1070913670","RISCOM_HITL_88":"1474114515","Kinetic_app_69":"1434224841","corespecialty_HITL_144":"1679484753"};
+
+  /************************************************************************
+   * UTILITIES: CSV parser, header helpers, date normalizer
+   ************************************************************************/
+  function parseCSV(text){
+    if(!text) return [];
+    const rows=[]; let cur='', inQ=false, row=[];
+    for(let i=0;i<text.length;i++){
+      const ch=text[i], nx=text[i+1];
+      if(ch==='"'){ if(inQ && nx==='"'){ cur+='"'; i++; continue; } inQ=!inQ; continue; }
+      if(ch==='\r') continue;
+      if(ch==='\n' && !inQ){ row.push(cur); rows.push(row); row=[]; cur=''; continue; }
+      if(ch===',' && !inQ){ row.push(cur); cur=''; continue; }
+      cur+=ch;
+    }
+    if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+    return rows.map(r=>r.map(v=> (v||'').toString().trim() ));
+  }
+  function normHeader(h){ return (h||'').toString().toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+  function normalizeDateString(s){
+    if(s==null) return null;
+    s=s.toString().trim();
+    if(s==='') return null;
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    let m;
+    if(m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)){
+      const d = m[1].padStart(2,'0'), mo = m[2].padStart(2,'0'), y = m[3];
+      return `${y}-${mo}-${d}`;
+    }
+    const dt = new Date(s);
+    if(!isNaN(dt)) return dt.toISOString().slice(0,10);
+    return null;
+  }
+  function findIdxFromHeader(headerNormArr, candidates){
+    for(const cand of candidates){
+      const n = normHeader(cand);
+      let i = headerNormArr.findIndex(h=>h===n);
+      if(i!==-1) return i;
+      i = headerNormArr.findIndex(h=>h.indexOf(n)!==-1);
+      if(i!==-1) return i;
+      i = headerNormArr.findIndex(h=>n.indexOf(h)!==-1);
+      if(i!==-1) return i;
+      const tokens = n.split(' ').filter(Boolean);
+      if(tokens.length){
+        i = headerNormArr.findIndex(h=>tokens.every(tok=>h.indexOf(tok)!==-1));
+        if(i!==-1) return i;
+      }
+    }
+    return -1;
+  }
+
+  /************************************************************************
+   * CHART helpers
+   ************************************************************************/
+  let chartInstance = null;
+  function renderBar(labels, dataSets){
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    if(chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(ctx, {
+      type:'bar',
+      data:{ labels, datasets: dataSets },
+      options:{ responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, precision:0 } } }
+    });
+  }
+
+  /************************************************************************
+   * TIMEZONE-SAFE CALENDAR HELPERS (local date formatting)
+   ************************************************************************/
+  function formatDateLocal(year, monthIndex, day){
+    const dt = new Date(year, monthIndex, day);
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const d = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  function parseLocalISO(iso){
+    const parts = (iso||'').split('-').map(Number);
+    return new Date(parts[0], (parts[1]||1)-1, parts[2]||1);
+  }
+
+  /************************************************************************
+   * CALENDAR: build, click handlers, range selection using local dates
+   ************************************************************************/
+  let calendarDate = new Date();
+  let selectedDates = new Set();
+  let lastClicked = null;
+
+  function buildCalendar(){
+    const grid = document.getElementById('calendarGrid'); grid.innerHTML='';
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const mon = new Date(year, month, 1);
+    const startDow = mon.getDay();
+    const days = new Date(year, month + 1, 0).getDate();
+
+    for(let i=0;i<startDow;i++){ const el=document.createElement('div'); el.className='day'; grid.appendChild(el); }
+
+    for(let d=1; d<=days; d++){
+      const iso = formatDateLocal(year, month, d);
+      const el = document.createElement('div'); el.className='day'; el.textContent = d; el.dataset.date = iso;
+      if(selectedDates.has(iso)) el.classList.add('selected');
+      el.addEventListener('click', (ev)=> handleDayClick(iso, ev));
+      grid.appendChild(el);
+    }
+
+    document.getElementById('calMonth').textContent = calendarDate.toLocaleString('default',{month:'short'});
+    document.getElementById('calYear').textContent = calendarDate.getFullYear();
+    updateSelectionText();
+  }
+
+  function setRangeFromToISO(aISO, bISO){
+    const aDate = parseLocalISO(aISO);
+    const bDate = parseLocalISO(bISO);
+    let a = new Date(aDate.getFullYear(), aDate.getMonth(), aDate.getDate());
+    let b = new Date(bDate.getFullYear(), bDate.getMonth(), bDate.getDate());
+    if(a > b){ const t = a; a = b; b = t; }
+    selectedDates.clear();
+    for(let d = new Date(a); d <= b; d.setDate(d.getDate() + 1)){
+      const iso = formatDateLocal(d.getFullYear(), d.getMonth(), d.getDate());
+      selectedDates.add(iso);
+    }
+  }
+
+  function handleDayClick(iso, ev){
+    const isShift = ev.shiftKey;
+    const isCtrl = ev.ctrlKey || ev.metaKey;
+    if(isShift && lastClicked){
+      setRangeFromToISO(lastClicked, iso);
+    } else if(isCtrl){
+      if(selectedDates.has(iso)) selectedDates.delete(iso); else selectedDates.add(iso);
+      lastClicked = iso;
+    } else {
+      selectedDates.clear();
+      selectedDates.add(iso);
+      lastClicked = iso;
+    }
+    buildCalendar();
+    updateSelectionText();
+    computeAndRender(); // update cards/chart based on selection
+  }
+
+  function updateSelectionText(){
+    const el = document.getElementById('selectionText');
+    if(selectedDates.size===0) el.textContent = 'No date selected';
+    else if(selectedDates.size===1) el.textContent = Array.from(selectedDates)[0];
+    else el.textContent = Array.from(selectedDates).slice(0,3).join(',') + (selectedDates.size>3 ? ' ...' : '');
+  }
+
+  document.addEventListener('click', (e)=>{
+    if(e.target.id==='prevMonth'){ calendarDate.setMonth(calendarDate.getMonth()-1); buildCalendar(); }
+    if(e.target.id==='nextMonth'){ calendarDate.setMonth(calendarDate.getMonth()+1); buildCalendar(); }
+  });
+
+  /************************************************************************
+   * DATA FETCHING (gviz & gid fallbacks)
+   ************************************************************************/
+  function extractId(input){
+    if(!input) return null;
+    const m = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    if(m) return m[1];
+    if(/^[a-zA-Z0-9-_]{20,}$/.test(input)) return input;
+    return null;
+  }
+  function buildGvizCsvUrl(spreadsheetId, tabName){ return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`; }
+  function buildExportByGidUrl(spreadsheetId, gid){ return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`; }
+
+  async function fetchTabCSV(spreadsheetId, tabName, gidMap){
+    const gviz = buildGvizCsvUrl(spreadsheetId, tabName);
+    try{
+      const r = await fetch(gviz);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const txt = await r.text();
+      if(!/[\n,]/.test(txt)) throw new Error('No CSV');
+      return {ok:true, text:txt, method:'gviz'};
+    }catch(e){
+      const gid = gidMap && gidMap[tabName] ? gidMap[tabName] : null;
+      if(gid){
+        try{
+          const r2 = await fetch(buildExportByGidUrl(spreadsheetId, gid));
+          if(!r2.ok) throw new Error('HTTP '+r2.status);
+          const t2 = await r2.text();
+          if(!/[\n,]/.test(t2)) throw new Error('No CSV');
+          return {ok:true, text:t2, method:'gid'};
+        }catch(e2){
+          return {ok:false, error:e2.message||String(e2)};
+        }
+      }
+      return {ok:false, error:e.message||String(e)};
+    }
+  }
+
+  /************************************************************************
+   * PROCESSING + UI UPDATES
+   * - processSheets expects an object { tabName: csvText, ... }
+   * - computeAndRender updates cards/chart according to selectedDates
+   ************************************************************************/
+  function processSheets(sheetsData){
+    // user from defaultUser (because UI input removed)
+    const user = defaultUser.toLowerCase();
+    const clients = Object.keys(sheetsData || {});
+    const perClientCounts = {}; const perDateClientCounts = {};
+    clients.forEach(c=>perClientCounts[c]=0);
+
+    for(const [client, text] of Object.entries(sheetsData || {})){
+      if(!text) continue;
+      const rows = parseCSV(text);
+      if(rows.length<1) continue;
+      const header = rows[0].map(h=>normHeader(h));
+      const creation = findIdxFromHeader(header,['creation date','creation']);
+      const completion = findIdxFromHeader(header,['completion date','completion']);
+      const making = findIdxFromHeader(header,['making_user','making']);
+      const verify = findIdxFromHeader(header,['verify_user','verify']);
+      for(let r=1;r<rows.length;r++){
+        const row = rows[r] || [];
+        const make = making>=0? (row[making]||'') : '';
+        const ver = verify>=0? (row[verify]||'') : '';
+        if(!make && !ver) continue;
+        const dateRaw = (completion>=0? row[completion] : '') || (creation>=0? row[creation] : '');
+        const nd = normalizeDateString(dateRaw);
+        if(!nd) continue;
+        const makeLower = (''+make).toLowerCase();
+        const verLower = (''+ver).toLowerCase();
+        const involved = (makeLower===user) || (verLower===user) || (makeLower===user && verLower===user);
+        if(involved){
+          perClientCounts[client] = (perClientCounts[client]||0) + 1;
+          perDateClientCounts[nd] = perDateClientCounts[nd] || {};
+          perDateClientCounts[nd][client] = (perDateClientCounts[nd][client]||0) + 1;
+        }
+      }
+    }
+
+    // store global state used by computeAndRender()
+    window._lastData = { perClientCounts, perDateClientCounts, clients };
+    renderUIFromData(window._lastData);
+  }
+
+  // create/refresh cards + client table placeholders (clientTable UI removed — updates still work via updateCardsAndSidebar)
+  function renderUIFromData(state){
+    const { perClientCounts, perDateClientCounts, clients } = state;
+    const cardsRow = document.getElementById('cardsRow'); cardsRow.innerHTML='';
+
+    // create client cards
+    clients.forEach((c, idx) => {
+      const div = document.createElement('div');
+      div.className = 'card g' + ((idx%5)+1);
+      div.dataset.client = c;
+      div.style.minWidth = '128px';
+      div.innerHTML = `<h4 style="margin:0">${c.split('_')[0]}</h4><div class="num">${perClientCounts[c]||0}</div>`;
+      div.addEventListener('click', ()=> renderClientView([c]));
+      cardsRow.appendChild(div);
+    });
+
+    // append total card
+    const totalCard = document.createElement('div');
+    totalCard.className = 'card gtotal';
+    totalCard.dataset.client = '__total';
+    totalCard.style.minWidth = '140px';
+    totalCard.innerHTML = `<h4 style="margin:0;color:rgba(0,0,0,0.6)">Total</h4><div class="num" style="color:black">${Object.values(perClientCounts).reduce((a,b)=>a+b,0)}</div>`;
+    cardsRow.appendChild(totalCard);
+
+    // compute initial render (cards/chart)
+    computeAndRender();
+  }
+
+  // update cards values (and other UI pieces) based on filteredCounts map
+  function updateCardsAndSidebar(filteredCounts){
+    const cards = document.querySelectorAll('#cardsRow .card');
+    cards.forEach(card=>{
+      const client = card.dataset.client;
+      if(!client) return;
+      if(client === '__total'){
+        const total = Object.values(filteredCounts).reduce((a,b)=>a+(b||0),0);
+        const numEl = card.querySelector('.num');
+        if(numEl) numEl.textContent = total;
+      } else {
+        const numEl = card.querySelector('.num');
+        if(numEl) numEl.textContent = filteredCounts[client]||0;
+      }
+    });
+    // clientTable DOM removed — you can update any other side UI here if needed
+  }
+
+  function renderClientView(list){
+    const state = window._lastData || { perClientCounts:{} };
+    const labels = list.map(c=>c.split('_')[0]);
+    const data = list.map(c=> state.perClientCounts[c] || 0);
+    renderBar(labels, [{ label:'Count', data, backgroundColor: labels.map((_,i)=> ['#8b5cf6','#f6a44e','#68d391','#5eead4','#e879f9'][i%5]) }]);
+    document.getElementById('dateMatrix').style.display='none';
+  }
+
+  function computeAndRender(){
+    const state = window._lastData || { perClientCounts:{}, perDateClientCounts:{}, clients:[] };
+    const clients = state.clients || [];
+
+    // build filteredCounts according to selectedDates (single or range)
+    const filteredCounts = {};
+    clients.forEach(c => filteredCounts[c] = 0);
+
+    if(selectedDates.size > 0){
+      const dates = Array.from(selectedDates).sort();
+      dates.forEach(d => {
+        const per = state.perDateClientCounts[d] || {};
+        clients.forEach(c => { filteredCounts[c] = (filteredCounts[c]||0) + (per[c]||0); });
+      });
+    } else {
+      clients.forEach(c => { filteredCounts[c] = state.perClientCounts[c] || 0; });
+    }
+
+    // update cards
+    updateCardsAndSidebar(filteredCounts);
+
+    // render chart or date-matrix
+    if(selectedDates.size > 0){
+      const dates = Array.from(selectedDates).sort();
+      if(dates.length === 1){
+        const d = dates[0];
+        const labels = clients.map(c=>c.split('_')[0]);
+        const data = clients.map(c=> (state.perDateClientCounts[d] && state.perDateClientCounts[d][c]) || 0 );
+        renderBar(labels, [{ label: defaultUser + ' — ' + d, data, backgroundColor: labels.map((_,i)=> ['#8b5cf6','#f6a44e','#68d391','#5eead4','#e879f9'][i%5]) }]);
+        // populate dateMatrix
+        const m = document.getElementById('dateMatrix'); m.style.display='block';
+        let html = `<h4 style="margin-top:0;color:#fff">Counts — ${d}</h4><table><thead><tr><th>Date</th>${clients.map(c=>`<th>${c.split('_')[0]}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
+        let totalRow = 0;
+        html += `<tr><td>${d}</td>`;
+        clients.forEach(c=>{ const v = (state.perDateClientCounts[d] && state.perDateClientCounts[d][c]) || 0; totalRow+=v; html += `<td style="text-align:right">${v}</td>`; });
+        html += `<td style="text-align:right">${totalRow}</td></tr></tbody></table>`;
+        m.innerHTML = html;
+      } else {
+        const dates = Array.from(selectedDates).sort();
+        const stacks = dates.map(d=> state.perDateClientCounts[d] || {});
+        const datasets = clients.map((c,idx)=>({ label:c.split('_')[0], data: stacks.map(s=> s[c]||0), backgroundColor:['#8b5cf6','#f6a44e','#68d391','#5eead4','#e879f9'][idx%5], stack:'stack1' }));
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(chartInstance) chartInstance.destroy();
+        chartInstance = new Chart(ctx, { type:'bar', data:{ labels:dates, datasets }, options:{ responsive:true, plugins:{legend:{display:true}}, scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true } } } });
+        // matrix
+        const m = document.getElementById('dateMatrix'); m.style.display='block';
+        let html = `<h4 style="margin-top:0;color:#fff">Date-wise counts</h4><table><thead><tr><th>Date</th>${clients.map(c=>`<th>${c.split('_')[0]}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
+        dates.forEach(d=>{
+          let rowTotal=0; html += `<tr><td>${d}</td>`;
+          clients.forEach(c=>{ const v = (state.perDateClientCounts[d] && state.perDateClientCounts[d][c]) || 0; rowTotal+=v; html += `<td style="text-align:right">${v}</td>`; });
+          html += `<td style="text-align:right">${rowTotal}</td></tr>`;
+        });
+        html += '</tbody></table>'; m.innerHTML = html;
+      }
+    } else {
+      // no date filter, per-client totals
+      const labels = clients.map(c=>c.split('_')[0]);
+      const data = clients.map(c=> filteredCounts[c] || 0);
+      renderBar(labels, [{ label:'Count', data, backgroundColor: labels.map((_,i)=> ['#8b5cf6','#f6a44e','#68d391','#5eead4','#e879f9'][i%5]) }]);
+      document.getElementById('dateMatrix').style.display='none';
+    }
+  }
+
+  /************************************************************************
+   * SYNC FLOW
+   * - uses spreadsheet ID from UI
+   * - uses defaultTabs & defaultGidMap (UI elements for them removed per request)
+   ************************************************************************/
+  async function syncData(){
+    const rawId = document.getElementById('sheetId').value.trim();
+    const id = extractId(rawId);
+    if(!id) return alert('Enter spreadsheet ID or URL');
+    const tabs = defaultTabs.slice(); // use defaults (tabs removed from UI)
+    const gidMap = defaultGidMap;
+    const btn = document.getElementById('syncBtn'); btn.disabled=true; btn.textContent='Syncing...';
+    try{
+      const results = {};
+      for(const t of tabs){
+        const res = await fetchTabCSV(id, t, gidMap);
+        results[t] = res.ok ? res.text : null;
+      }
+      processSheets(results);
+    }catch(e){
+      console.error(e);
+      alert('Sync failed: ' + (e.message || e));
+    }finally{
+      btn.disabled=false; btn.textContent='★ Sync Data';
+    }
+  }
+  document.getElementById('syncBtn').addEventListener('click', syncData);
+
+  /************************************************************************
+   * INITIALIZE (calendar + sample data)
+   ************************************************************************/
+  buildCalendar();
+
+  (function loadSample(){
+    // small sample using local dates (YYYY-MM-DD)
+    const fake = {};
+    fake['method_webs_67'] = "Creation Date,Completion_Date,Making_user,Verify_user\n2025-12-04,2025-12-04,Arun,Arun\n2025-12-04,,Arun,Bob\n2025-12-05,,Bob,Arun";
+    fake['Foresight_HITL_127'] = "Creation Date,Completion_Date,Making_user,Verify_user\n2025-12-04,2025-12-04,Arun,Arun\n2025-12-03,,Someone,Arun";
+    fake['RISCOM_HITL_88'] = "Creation Date,Completion_Date,Making_user,Verify_user\n2025-12-05,2025-12-05,Arun,Someone";
+    fake['Kinetic_app_69'] = "Creation Date,Completion_Date,Making_user,Verify_user\n2025-12-06,2025-12-06,Someone,Arun";
+    fake['corespecialty_HITL_144'] = "Creation Date,Completion_Date,Making_user,Verify_user\n2025-12-04,2025-12-04,Arun,Arun";
+    processSheets(fake);
+  })();
+
+  </script>
+</body>
+</html>
