@@ -38,7 +38,10 @@
     .inputBox input{background:transparent;border:none;color:inherit;outline:none;padding-top:6px}
     /* cards row */
     .cardsRow{display:flex;gap:14px;align-items:center;margin:12px 0;flex-wrap:nowrap;overflow:auto;padding-bottom:6px}
-    .card{min-width:140px;height:72px;border-radius:14px;padding:12px;color:#04121b;display:flex;flex-direction:column;justify-content:center;box-shadow:var(--shadow)}
+    .card{min-width:140px;height:72px;border-radius:14px;padding:12px;color:#04121b;display:flex;flex-direction:column;justify-content:center;transition: transform .18s ease, box-shadow .18s ease;
+     cursor:pointer;}
+    .card:hover{ transform: translateY(-6px); box-shadow: 0 14px 40px rgba(0,0,0,0.45); }
+    .card.active{ outline: 3px solid rgba(255,255,255,0.12); transform: scale(1.03); }
     .card h4{margin:0;font-size:13px;color:rgba(0,0,0,0.6)}
     .card .num{font-size:26px;font-weight:700;margin-top:6px}
     .g1{background:linear-gradient(135deg,#8b5cf6,#c084fc)}
@@ -103,7 +106,7 @@
            =========================================================== -->
       <div class="cardsRow" id="cardsRow">
         <!-- example static placeholders (will be replaced by JS on sync) -->
-        <div data-client="method_webs_67"><h4 style="margin:0">Method</h4><div class="num">—</div></div>
+        <div class="card g1" data-client="method_webs_67"><h4 style="margin:0">Method</h4><div class="num">—</div></div>
         <div class="card g2" data-client="Foresight_HITL_127"><h4 style="margin:0">Foresight</h4><div class="num">—</div></div>
         <div class="card g3" data-client="RISCOM_HITL_88"><h4 style="margin:0">Riscom</h4><div class="num">—</div></div>
         <div class="card g4" data-client="Kinetic_app_69"><h4 style="margin:0">Kinetic</h4><div class="num">—</div></div>
@@ -579,6 +582,7 @@
   </script>
 </body>
 </html>
+
 
 
 
