@@ -63,6 +63,20 @@
     .calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
     .day{padding:8px;border-radius:8px;text-align:center;color:#cfcfd6;background:transparent;cursor:pointer}
     .day.selected{background:var(--accent);color:white;box-shadow:0 6px 14px rgba(124,58,237,0.12)}
+    .calWeekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 6px;
+}
+
+.calWeekdays div {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9aa6b2;
+  padding: 6px 0;
+  text-transform: uppercase;
+}
     /* moved sync button (placed under calendar) */
     .syncWrap{margin-top:12px;display:flex;justify-content:flex-start}
     .syncBtn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:22px;background:linear-gradient(90deg,#6d28d9,#8b5cf6);color:white;border:none;cursor:pointer}
@@ -138,13 +152,21 @@
              4) CALENDAR SIDEBAR CARD
              - Sync button is placed BELOW this card (outside) as requested
              =========================================================== -->
-        <div style="width:280px">
+        <div style="width:280px"> 
           <div class="calendarCard" id="calendarCard">
             <div class="calHeader">
               <div><strong id="calMonth">Sep</strong> <span id="calYear">2025</span></div>
               <div><button id="prevMonth">◀</button> <button id="nextMonth">▶</button></div>
             </div>
-
+            <div class="calWeekdays">
+          <div>Sun</div>
+          <div>Mon</div>
+          <div>Tue</div>
+          <div>Wed</div>
+          <div>Thu</div>
+          <div>Fri</div>
+          <div>Sat</div>
+          </div>
             <!-- calendar grid (cells inserted by JS) -->
             <div class="calGrid" id="calendarGrid"></div>
 
@@ -600,6 +622,7 @@
   </script>
 </body>
 </html>
+
 
 
 
