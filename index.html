@@ -926,7 +926,7 @@
             ${clients.map(c => {
             const v = (state.perDateClientCounts[d]?.[c]) || 0;
             totalRow += v;
-            return `<td style="text-align:right">${v}</td>`;
+            return `<td style="text-align:center">${v}</td>`;
           }).join("")}
             <td style="text-align:right">${totalRow}</td>
           `;
@@ -964,9 +964,9 @@
       ${clients.map(c => {
               const v = (state.perDateClientCounts[d]?.[c]) || 0;
               rowTotal += v;
-              return `<td style="text-align:right">${v}</td>`;
+              return `<td style="text-align:center">${v}</td>`;
             }).join("")}
-      <td style="text-align:right">${rowTotal}</td>
+      <td style="text-align:center">${rowTotal}</td>
     `;
 
             tbody.appendChild(tr);
@@ -1029,3 +1029,4 @@
 </body>
 
 </html>
+
