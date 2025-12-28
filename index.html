@@ -271,7 +271,15 @@
       gap: 6px;
     }
 
+    .day.today {
+      border: 1px solid #c5227c;
+      color: #c5227c;
+      box-shadow: 2px 2px 2px rgba(221, 213, 122, 0.25);
+      font-weight: 600;
+    }
+
     .day {
+      position: relative;
       height: 30px;
       /* 👈 forces uniform rows */
       font-size: 13px;
@@ -282,6 +290,16 @@
       color: #cfcfd6;
       background: transparent;
       cursor: pointer;
+    }
+
+    .day.has-data::after {
+      content: "";
+      width: 5px;
+      height: 5px;
+      background: #8b5cf6;
+      border-radius: 50%;
+      position: absolute;
+      bottom: 4px;
     }
 
     .day.selected {
@@ -422,13 +440,12 @@
            - Chart size reduced: canvas height set to 140 (was 220)
            =========================================================== -->
       <div class="content">
-        <!-- Chart dev -->
+
         <div class="panel chartPanel">
           <div class="chartHeader">Tasks Progress</div>
           <canvas id="mainChart" height="140"></canvas>
         </div>
 
-         <!-- Table dev -->
         <div class="panel tablePanel" id="dateMatrix">
           <h4 class="tableTitle">Date Wise Counts</h4>
 
@@ -458,7 +475,8 @@
           </table>
         </div>
 
-        <!-- calendar dev -->
+
+
         <div style="width:280px">
           <div class="panel calendarPanel">
             <div class="calendarCard" id="calendarCard">
@@ -482,14 +500,13 @@
               <div id="selectionText" style="color:var(--muted);margin-top:6px">No date selected</div>
             </div>
 
-          </div> <!-- Calendar END -->
+          </div> <!-- Calendar -->
           <div class="syncWrap">
             <button class="syncBtn" id="syncBtn">Sync Data</button>
           </div>
-          
-        </div><!-- width end -->
+        </div>
 
-      </div> <!-- content end -->
+      </div> <!-- content -->
 
     </div> <!-- .main -->
   </div> <!-- .app -->
@@ -498,6 +515,7 @@
        JAVASCRIPT
        - Defaults for Tabs & User are set here: defaultTabs, defaultUser
        - Calendar uses timezone-safe local date formatting.
+       - Comments mark each logical block.
        =========================================================== -->
   <script>
     /************************************************************************
@@ -651,29 +669,62 @@
     let calendarDate = new Date();
     let selectedDates = new Set();
     let lastClicked = null;
+    const today = new Date();
+    const todayISO = formatDateLocal(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
 
     function buildCalendar() {
-      const grid = document.getElementById('calendarGrid'); grid.innerHTML = '';
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+
+      const dateHasDataMap = window._lastData?.perDateClientCounts || {};
+
       const year = calendarDate.getFullYear();
       const month = calendarDate.getMonth();
       const mon = new Date(year, month, 1);
       const startDow = mon.getDay();
       const days = new Date(year, month + 1, 0).getDate();
 
-      for (let i = 0; i < startDow; i++) { const el = document.createElement('div'); el.className = 'day'; grid.appendChild(el); }
+      for (let i = 0; i < startDow; i++) {
+        const el = document.createElement('div');
+        el.className = 'day';
+        grid.appendChild(el);
+      }
 
       for (let d = 1; d <= days; d++) {
         const iso = formatDateLocal(year, month, d);
-        const el = document.createElement('div'); el.className = 'day'; el.textContent = d; el.dataset.date = iso;
-        if (selectedDates.has(iso)) el.classList.add('selected');
+        const el = document.createElement('div');
+        el.className = 'day';
+        el.textContent = d;
+        el.dataset.date = iso;
+
+        if (iso === todayISO) {
+          el.classList.add('today');
+        }
+
+        if (selectedDates.has(iso)) {
+          el.classList.add('selected');
+        }
+
+        if (dateHasDataMap[iso]) {
+          el.classList.add('has-data');
+        }
+
         el.addEventListener('click', (ev) => handleDayClick(iso, ev));
         grid.appendChild(el);
       }
 
-      document.getElementById('calMonth').textContent = calendarDate.toLocaleString('default', { month: 'short' });
-      document.getElementById('calYear').textContent = calendarDate.getFullYear();
+      document.getElementById('calMonth').textContent =
+        calendarDate.toLocaleString('default', { month: 'short' });
+      document.getElementById('calYear').textContent =
+        calendarDate.getFullYear();
+
       updateSelectionText();
     }
+
 
     function setRangeFromToISO(aISO, bISO) {
       const aDate = parseLocalISO(aISO);
@@ -926,7 +977,7 @@
             ${clients.map(c => {
             const v = (state.perDateClientCounts[d]?.[c]) || 0;
             totalRow += v;
-            return `<td style="text-align:center">${v}</td>`;
+            return `<td style="text-align:right">${v}</td>`;
           }).join("")}
             <td style="text-align:right">${totalRow}</td>
           `;
@@ -964,9 +1015,9 @@
       ${clients.map(c => {
               const v = (state.perDateClientCounts[d]?.[c]) || 0;
               rowTotal += v;
-              return `<td style="text-align:center">${v}</td>`;
+              return `<td style="text-align:right">${v}</td>`;
             }).join("")}
-      <td style="text-align:center">${rowTotal}</td>
+      <td style="text-align:right">${rowTotal}</td>
     `;
 
             tbody.appendChild(tr);
@@ -1029,4 +1080,3 @@
 </body>
 
 </html>
-
