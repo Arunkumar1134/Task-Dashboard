@@ -179,23 +179,28 @@
 
 
     .g1 {
-      background: linear-gradient(135deg, #7C3AED, #c7badd)
+      background: linear-gradient(135deg, #5928ad, #C4B5FD)
     }
 
     .g2 {
-      background: linear-gradient(135deg, #f6a44e, #ffd27d)
+      background: linear-gradient(135deg, #DB2777, #F9A8D4)
     }
 
     .g3 {
-      background: linear-gradient(135deg, #68d391, #c6f6d5)
+     
+      background: linear-gradient(135deg, #562e0b, #69503b)
     }
 
     .g4 {
-      background: linear-gradient(135deg, #5eead4, #9df8f3)
+      background: linear-gradient(135deg, #F97316, #FDBA74)
     }
 
     .g5 {
-      background: linear-gradient(135deg, #e879f9, #fbc7ff)
+      background: linear-gradient(135deg, #16A34A, #86EFAC)
+    }
+
+    .g6 {
+       background: linear-gradient(135deg, #30cdd8, #5EEAD4)
     }
 
     .gtotal {
@@ -416,7 +421,11 @@
           <div class="num">—</div>
         </div>
         <div class="card g2" data-client="Foresight_HITL_127">
-          <h4 style="margin:0">Foresight</h4>
+          <h4 style="margin:0">Foresight_Exmod</h4>
+          <div class="num">—</div>
+        </div>
+        <div class="card g6" data-client="Foresight_HITL_127">
+          <h4 style="margin:0">Foresight_Suppl</h4>
           <div class="num">—</div>
         </div>
         <div class="card g3" data-client="RISCOM_HITL_88">
@@ -454,7 +463,8 @@
               <tr>
                 <th>Date</th>
                 <th>Method</th>
-                <th>Foresight</th>
+                <th>Foresight_Exmod</th>
+                <th>Foresight_Suppl</th>
                 <th>Riscom</th>
                 <th>Kinetic</th>
                 <th>Corespecialty</th>
@@ -525,6 +535,19 @@
     const defaultTabs = ["method_webs_67", "Foresight_HITL_127", "RISCOM_HITL_88", "Kinetic_app_69", "corespecialty_HITL_144"];
     const defaultUser = "Arun";
     const defaultGidMap = { "method_webs_67": "0", "Foresight_HITL_127": "1070913670", "RISCOM_HITL_88": "1474114515", "Kinetic_app_69": "1434224841", "corespecialty_HITL_144": "1679484753" };
+
+    // === FORESIGHT CATEGORY KPIs ===
+    const FORESIGHT_EXMOD = "Foresight_Exmod";
+    const FORESIGHT_SUPPL = "Foresight_Suppl";
+    // === DISPLAY ORDER (KPI + TABLE + CHART) ===
+    const DISPLAY_CLIENT_ORDER = [
+      "method_webs_67",
+      FORESIGHT_EXMOD,
+      FORESIGHT_SUPPL,
+      "RISCOM_HITL_88",
+      "Kinetic_app_69",
+      "corespecialty_HITL_144"
+    ];
 
     /************************************************************************
      * UTILITIES: CSV parser, header helpers, date normalizer
@@ -815,9 +838,21 @@
     function processSheets(sheetsData) {
       // user from defaultUser (because UI input removed)
       const user = defaultUser.toLowerCase();
-      const clients = Object.keys(sheetsData || {});
+      let clients = Object.keys(sheetsData || {});
+
+      if (clients.includes("Foresight_HITL_127")) {
+        clients = clients.filter(c => c !== "Foresight_HITL_127");
+        clients.push(FORESIGHT_EXMOD);
+        clients.push(FORESIGHT_SUPPL);
+      }
       const perClientCounts = {}; const perDateClientCounts = {};
       clients.forEach(c => perClientCounts[c] = 0);
+      // Foresight category counters
+      let foresightExmodTotal = 0;
+      let foresightSupplTotal = 0;
+
+      const foresightExmodDateMap = {};
+      const foresightSupplDateMap = {};
 
       for (const [client, text] of Object.entries(sheetsData || {})) {
         if (!text) continue;
@@ -828,6 +863,7 @@
         const completion = findIdxFromHeader(header, ['completion date', 'completion']);
         const making = findIdxFromHeader(header, ['making_user', 'making']);
         const verify = findIdxFromHeader(header, ['verify_user', 'verify']);
+        const categoryIdx = findIdxFromHeader(header, ['category']);
         for (let r = 1; r < rows.length; r++) {
           const row = rows[r] || [];
           const make = making >= 0 ? (row[making] || '') : '';
@@ -840,15 +876,62 @@
           const verLower = ('' + ver).toLowerCase();
           const involved = (makeLower === user) || (verLower === user) || (makeLower === user && verLower === user);
           if (involved) {
-            perClientCounts[client] = (perClientCounts[client] || 0) + 1;
-            perDateClientCounts[nd] = perDateClientCounts[nd] || {};
-            perDateClientCounts[nd][client] = (perDateClientCounts[nd][client] || 0) + 1;
+
+            // ===== FORESIGHT: SPLIT BY CATEGORY =====
+            if (client === "Foresight_HITL_127") {
+              const category = (row[categoryIdx] || '').trim().toLowerCase();
+
+              if (category === "exmod") {
+                foresightExmodTotal++;
+                foresightExmodDateMap[nd] =
+                  (foresightExmodDateMap[nd] || 0) + 1;
+              }
+
+              if (category === "suppl") {
+                foresightSupplTotal++;
+                foresightSupplDateMap[nd] =
+                  (foresightSupplDateMap[nd] || 0) + 1;
+              }
+            }
+
+            // ===== ALL OTHER CLIENTS (NO CHANGE) =====
+            else {
+              perClientCounts[client] =
+                (perClientCounts[client] || 0) + 1;
+
+              perDateClientCounts[nd] = perDateClientCounts[nd] || {};
+              perDateClientCounts[nd][client] =
+                (perDateClientCounts[nd][client] || 0) + 1;
+            }
           }
+
         }
       }
+      // Final Foresight KPI totals
+      perClientCounts[FORESIGHT_EXMOD] = foresightExmodTotal;
+      perClientCounts[FORESIGHT_SUPPL] = foresightSupplTotal;
+
+      // Date-wise Foresight Exmod
+      Object.keys(foresightExmodDateMap).forEach(d => {
+        perDateClientCounts[d] = perDateClientCounts[d] || {};
+        perDateClientCounts[d][FORESIGHT_EXMOD] =
+          foresightExmodDateMap[d];
+      });
+
+      // Date-wise Foresight Suppl
+      Object.keys(foresightSupplDateMap).forEach(d => {
+        perDateClientCounts[d] = perDateClientCounts[d] || {};
+        perDateClientCounts[d][FORESIGHT_SUPPL] =
+          foresightSupplDateMap[d];
+      });
+
 
       // store global state used by computeAndRender()
-      window._lastData = { perClientCounts, perDateClientCounts, clients };
+      window._lastData = {
+        perClientCounts,
+        perDateClientCounts,
+        clients: DISPLAY_CLIENT_ORDER
+      };
       renderUIFromData(window._lastData);
     }
 
@@ -864,27 +947,40 @@
         div.dataset.client = c;
         div.style.minWidth = '128px';
 
-        // create a pretty title:
-        // - lowercase, then capitalize each word (Method, Foresight, Kinetic App, etc.)
-        const raw = (c.split('_')[0] || c);
-        const cleaned = raw.replace(/[-_]/g, ' ');
-        const title = cleaned
-          .toLowerCase()
-          .split(' ')
-          .map(w => w ? (w[0].toUpperCase() + w.slice(1)) : '')
-          .join(' ');
+        // ===== TITLE HANDLING (FIXED) =====
+        let title;
+
+        if (c == FORESIGHT_EXMOD) {
+          title = "Foresight_Exmod";
+        }
+        else if (c == FORESIGHT_SUPPL) {
+          title = "Foresight_Suppl";
+        }
+        else {
+          const raw = (c.split('_')[0] || c);
+          const cleaned = raw.replace(/[-_]/g, ' ');
+          title = cleaned
+            .toLowerCase()
+            .split(' ')
+            .map(w => w ? (w[0].toUpperCase() + w.slice(1)) : '')
+            .join(' ');
+        }
 
         div.innerHTML = `<h4 style="margin:0">${title}</h4><div class="num">${perClientCounts[c] || 0}</div>`;
 
         div.addEventListener('click', () => {
-          // toggle active state visually and show client view
-          document.querySelectorAll('#cardsRow .card').forEach(x => x.classList.remove('active'));
+          document
+            .querySelectorAll('#cardsRow .card')
+            .forEach(x => x.classList.remove('active'));
+
           div.classList.add('active');
           renderClientView([c]);
         });
 
         cardsRow.appendChild(div);
       });
+
+
 
       // append total card
       const totalCard = document.createElement('div');
